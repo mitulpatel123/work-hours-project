@@ -10,46 +10,54 @@ const Dashboard: React.FC = () => {
 
   const stats = useMemo(() => {
     const total = workHours.length;
-    const completed = workHours.filter(wh => wh.isComplete).length;
+    const completed = workHours.filter((wh) => wh.isComplete).length;
     const pending = total - completed;
-    
+
     // Calculate completion rate
     const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
-    
+
     // Calculate month-over-month growth
     const currentDate = new Date();
     const currentMonth = currentDate.getMonth();
     const currentYear = currentDate.getFullYear();
-    
-    const thisMonthEntries = workHours.filter(wh => {
+
+    const thisMonthEntries = workHours.filter((wh) => {
       const date = new Date(wh.startDate);
       return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
     }).length;
 
-    const lastMonthEntries = workHours.filter(wh => {
+    const lastMonthEntries = workHours.filter((wh) => {
       const date = new Date(wh.startDate);
-      const isLastMonth = currentMonth === 0 
-        ? date.getMonth() === 11 && date.getFullYear() === currentYear - 1
-        : date.getMonth() === currentMonth - 1 && date.getFullYear() === currentYear;
+      const isLastMonth =
+        currentMonth === 0
+          ? date.getMonth() === 11 && date.getFullYear() === currentYear - 1
+          : date.getMonth() === currentMonth - 1 && date.getFullYear() === currentYear;
       return isLastMonth;
     }).length;
 
-    const monthlyGrowth = lastMonthEntries > 0 
+    const monthlyGrowth = lastMonthEntries > 0
       ? Math.round(((thisMonthEntries - lastMonthEntries) / lastMonthEntries) * 100)
       : 0;
 
-    // Calculate average duration
+    // Calculate total hours and minutes
     let totalMinutes = 0;
-    workHours.forEach(wh => {
+    workHours.forEach((wh) => {
       const [startHour, startMinute] = wh.startTime.split(':').map(Number);
       const [endHour, endMinute] = wh.endTime.split(':').map(Number);
+      
       let minutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
-      if (minutes < 0) minutes += 24 * 60; // Handle overnight shifts
+      
+      // Handle overnight shifts
+      if (minutes < 0) {
+        minutes += 24 * 60;
+      }
+      
       totalMinutes += minutes;
     });
-    const averageDuration = total > 0 ? Math.round(totalMinutes / total) : 0;
-    const averageHours = Math.floor(averageDuration / 60);
-    const averageMinutes = averageDuration % 60;
+
+    // Convert total minutes to hours and remaining minutes
+    const totalHours = Math.floor(totalMinutes / 60);
+    const remainingMinutes = totalMinutes % 60;
 
     return {
       total,
@@ -57,38 +65,38 @@ const Dashboard: React.FC = () => {
       pending,
       completionRate,
       monthlyGrowth,
-      averageDuration: `${averageHours}h ${averageMinutes}m`
+      totalTime: `${totalHours}h ${remainingMinutes}m`,
     };
   }, [workHours]);
 
   const quickActions = [
-    { 
-      icon: Plus, 
-      label: 'Add Work Hours', 
+    {
+      icon: Plus,
+      label: 'Add Work Hours',
       path: '/work-hours/add',
       description: 'Record new work hours',
-      color: 'bg-indigo-600 hover:bg-indigo-700 text-white'
+      color: 'bg-indigo-600 hover:bg-indigo-700 text-white',
     },
-    { 
-      icon: List, 
-      label: 'View All', 
+    {
+      icon: List,
+      label: 'View All',
       path: '/work-hours/list',
       description: 'See all work hour entries',
-      color: 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-300'
+      color: 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-300',
     },
-    { 
-      icon: Filter, 
-      label: 'Filter Hours', 
+    {
+      icon: Filter,
+      label: 'Filter Hours',
       path: '/work-hours/filter',
       description: 'Search and filter entries',
-      color: 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-300'
+      color: 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-300',
     },
-    { 
-      icon: CheckSquare, 
-      label: 'Mark Complete', 
+    {
+      icon: CheckSquare,
+      label: 'Mark Complete',
       path: '/work-hours/complete',
       description: 'Update completion status',
-      color: 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-300'
+      color: 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-300',
     },
   ];
 
@@ -111,10 +119,14 @@ const Dashboard: React.FC = () => {
           value={stats.total}
           icon={Clock}
           color="blue"
-          trend={stats.monthlyGrowth !== 0 ? {
-            value: Math.abs(stats.monthlyGrowth),
-            isPositive: stats.monthlyGrowth > 0
-          } : undefined}
+          trend={
+            stats.monthlyGrowth !== 0
+              ? {
+                  value: Math.abs(stats.monthlyGrowth),
+                  isPositive: stats.monthlyGrowth > 0,
+                }
+              : undefined
+          }
           description="Total number of work hour entries"
         />
         <StatsCard
@@ -132,11 +144,11 @@ const Dashboard: React.FC = () => {
           description="Work hours pending completion"
         />
         <StatsCard
-          title="Average Duration"
-          value={stats.averageDuration}
+          title="Total Hours"
+          value={stats.totalTime}
           icon={Clock}
           color="blue"
-          description="Average time per entry"
+          description="Total hours worked"
         />
       </div>
 
@@ -151,14 +163,18 @@ const Dashboard: React.FC = () => {
             <div className="flex items-center">
               <action.icon className="h-6 w-6 flex-shrink-0" />
               <div className="ml-4">
-                <p className={`text-sm font-medium ${
-                  action.color.includes('white') ? 'text-gray-900' : 'text-white'
-                }`}>
+                <p
+                  className={`text-sm font-medium ${
+                    action.color.includes('white') ? 'text-gray-900' : 'text-white'
+                  }`}
+                >
                   {action.label}
                 </p>
-                <p className={`mt-1 text-sm ${
-                  action.color.includes('white') ? 'text-gray-500' : 'text-white/80'
-                }`}>
+                <p
+                  className={`mt-1 text-sm ${
+                    action.color.includes('white') ? 'text-gray-500' : 'text-white/80'
+                  }`}
+                >
                   {action.description}
                 </p>
               </div>

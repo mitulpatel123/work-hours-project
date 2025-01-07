@@ -15,10 +15,25 @@ const WorkHoursTable: React.FC<WorkHoursTableProps> = ({
   workHours,
   onToggleComplete,
   onDelete,
-  isLoading = false
+  isLoading = false,
 }) => {
   const getHeadingName = (heading: string | Heading): string => {
     return typeof heading === 'string' ? heading : heading.name;
+  };
+
+  // Format date range for display
+  const formatDateRange = (startDate: string, endDate: string): string => {
+    // If start and end dates are the same, show only one date
+    if (startDate === endDate) {
+      return formatDate(startDate);
+    }
+    // Otherwise show the range
+    return `${formatDate(startDate)} - ${formatDate(endDate)}`;
+  };
+
+  // Format time range for display
+  const formatTimeRange = (startTime: string, endTime: string): string => {
+    return `${formatTime(startTime)} - ${formatTime(endTime)}`;
   };
 
   if (isLoading) {
@@ -44,22 +59,22 @@ const WorkHoursTable: React.FC<WorkHoursTableProps> = ({
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Date
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Time
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Duration
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Heading
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Status
             </th>
-            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
               Actions
             </th>
           </tr>
@@ -68,13 +83,10 @@ const WorkHoursTable: React.FC<WorkHoursTableProps> = ({
           {workHours.map((workHour) => (
             <tr key={workHour._id} className="hover:bg-gray-50">
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {formatDate(workHour.startDate)}
-                {workHour.startDate !== workHour.endDate && (
-                  <> - {formatDate(workHour.endDate)}</>
-                )}
+                {formatDateRange(workHour.startDate, workHour.endDate)}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {formatTime(workHour.startTime)} - {formatTime(workHour.endTime)}
+                {formatTimeRange(workHour.startTime, workHour.endTime)}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 {calculateDuration(workHour.startTime, workHour.endTime)}
@@ -96,16 +108,18 @@ const WorkHoursTable: React.FC<WorkHoursTableProps> = ({
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div className="flex items-center justify-end space-x-3">
-                  <Link
-                    to={`/work-hours/edit/${workHour._id}`}
+                  <Link 
+                    to={`/work-hours/edit/${workHour._id}`} 
                     className="text-indigo-600 hover:text-indigo-900"
+                    aria-label="Edit work hours"
                   >
                     <Edit2 className="h-4 w-4" />
                   </Link>
                   {onDelete && (
-                    <button
-                      onClick={() => onDelete(workHour._id)}
+                    <button 
+                      onClick={() => onDelete(workHour._id)} 
                       className="text-red-600 hover:text-red-900"
+                      aria-label="Delete work hours"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>

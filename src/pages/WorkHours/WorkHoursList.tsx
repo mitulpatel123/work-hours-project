@@ -15,14 +15,11 @@ const WorkHoursList: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  // Handle success message from navigation state
   useEffect(() => {
     const state = location.state as LocationState;
     if (state?.message) {
       setMessage(state.message);
-      // Clear the message from navigation state
       window.history.replaceState({}, document.title);
-      // Auto-dismiss message after 5 seconds
       const timer = setTimeout(() => setMessage(null), 5000);
       return () => clearTimeout(timer);
     }
@@ -58,18 +55,38 @@ const WorkHoursList: React.FC = () => {
     }
   };
 
+  // Improved sorting logic that considers both date and time
+  const sortedWorkHours = React.useMemo(() => {
+    return [...workHours].sort((a, b) => {
+      // Create Date objects using both date and time
+      const dateA = new Date(`${a.startDate}T${a.startTime}`);
+      const dateB = new Date(`${b.startDate}T${b.startTime}`);
+      
+      // First sort by date
+      const dateDiff = dateB.getTime() - dateA.getTime();
+      if (dateDiff !== 0) return dateDiff;
+      
+      // If dates are the same, sort by time
+      const timeA = a.startTime.split(':').map(Number);
+      const timeB = b.startTime.split(':').map(Number);
+      
+      // Convert times to minutes for comparison
+      const minutesA = timeA[0] * 60 + timeA[1];
+      const minutesB = timeB[0] * 60 + timeB[1];
+      
+      return minutesB - minutesA;
+    });
+  }, [workHours]);
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="border-b border-gray-200 pb-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <Clock className="h-8 w-8 text-indigo-600 mr-3" />
             <div>
               <h2 className="text-2xl font-bold text-gray-900">Work Hours</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                View and manage your work hour entries
-              </p>
+              <p className="mt-1 text-sm text-gray-500">View and manage your work hour entries</p>
             </div>
           </div>
           <div className="flex items-center space-x-3">
@@ -93,22 +110,18 @@ const WorkHoursList: React.FC = () => {
         </div>
       </div>
 
-      {/* Success/Error Message */}
       {message && (
-        <div 
+        <div
           className={`rounded-md p-4 ${
-            message.includes('Failed') 
-              ? 'bg-red-50 text-red-800' 
-              : 'bg-green-50 text-green-800'
+            message.includes('Failed') ? 'bg-red-50 text-red-800' : 'bg-green-50 text-green-800'
           }`}
         >
           <p className="text-sm font-medium">{message}</p>
         </div>
       )}
 
-      {/* Work Hours Table */}
       <WorkHoursTable
-        workHours={workHours}
+        workHours={sortedWorkHours}
         onDelete={handleDelete}
         onToggleComplete={handleToggleComplete}
         isLoading={isLoading}

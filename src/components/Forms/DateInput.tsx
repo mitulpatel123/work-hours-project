@@ -1,6 +1,5 @@
 import React from 'react';
 import { FormField } from './FormField';
-// import { getCurrentDate } from '../../utils/dateUtils';
 
 interface DateInputProps {
   label: string;
@@ -12,6 +11,7 @@ interface DateInputProps {
   required?: boolean;
   min?: string;
   max?: string;
+  disabled?: boolean;  // Added disabled prop
   className?: string;
 }
 
@@ -23,14 +23,15 @@ const DateInput: React.FC<DateInputProps> = ({
   onBlur,
   error,
   required = false,
-  min = '2000-01-01',
-  max = '2100-12-31',
-  className = ''
+  min,
+  max,
+  disabled = false,  // Added with default value
+  className = '',
 }) => {
   return (
-    <FormField 
-      label={label} 
-      name={name} 
+    <FormField
+      label={label}
+      name={name}
       error={error}
       required={required}
       className={className}
@@ -45,12 +46,15 @@ const DateInput: React.FC<DateInputProps> = ({
         required={required}
         min={min}
         max={max}
+        disabled={disabled}  // Added disabled attribute
         className={`
-          mt-1 block w-full rounded-md shadow-sm
-          ${error 
-            ? 'border-red-300 text-red-900 placeholder-red-300 focus:border-red-500 focus:ring-red-500' 
-            : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-500'
-          }
+          mt-1
+          block
+          w-full
+          rounded-md
+          shadow-sm
+          ${error ? 'border-red-300 text-red-900 placeholder-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-500'}
+          ${disabled ? 'bg-gray-100 cursor-not-allowed' : ''}
           sm:text-sm
         `}
       />

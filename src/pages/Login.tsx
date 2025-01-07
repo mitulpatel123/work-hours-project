@@ -118,7 +118,7 @@ const Login: React.FC = () => {
           </div>
 
           <div className="text-sm text-center text-gray-500">
-            Note: Default PIN for first-time setup is 123456
+            Note: Default PIN for first-time setup is 1111
           </div>
         </form>
       </div>

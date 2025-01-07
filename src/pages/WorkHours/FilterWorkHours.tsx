@@ -6,6 +6,7 @@ import WorkHoursTable from '../../components/WorkHours/WorkHoursList/WorkHoursTa
 import DateInput from '../../components/Forms/DateInput';
 import HeadingSelect from '../../components/Forms/HeadingSelect';
 import type { WorkHour } from '../../types';
+import { validateDateRange } from '../../utils/dateUtils';
 
 interface FilterCriteria {
   startDate: string;
@@ -14,24 +15,32 @@ interface FilterCriteria {
   status: 'all' | 'complete' | 'pending';
 }
 
+const RATE_PER_MINUTE = 0.2; // $0.2 per minute
+
 const FilterWorkHours: React.FC = () => {
   const navigate = useNavigate();
   const { workHours, headings, deleteWorkHour, updateWorkHour } = useWorkHours();
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  
+
   const [filters, setFilters] = useState<FilterCriteria>({
     startDate: '',
     endDate: '',
     heading: '',
-    status: 'all'
+    status: 'all',
   });
 
   const handleFilterChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    setFilters(prev => ({ ...prev, [name]: value }));
+    setFilters((prev) => {
+      const newFilters = { ...prev, [name]: value };
+      if (name === 'startDate' && !value) {
+        newFilters.endDate = '';
+      }
+      return newFilters;
+    });
   };
 
   const resetFilters = () => {
@@ -39,27 +48,82 @@ const FilterWorkHours: React.FC = () => {
       startDate: '',
       endDate: '',
       heading: '',
-      status: 'all'
+      status: 'all',
     });
   };
 
   const filterWorkHours = (workHours: WorkHour[]): WorkHour[] => {
-    return workHours.filter(wh => {
-      if (filters.startDate && wh.startDate < filters.startDate) return false;
-      if (filters.endDate && wh.endDate > filters.endDate) return false;
-      if (filters.heading && 
-          (typeof wh.heading === 'string' ? wh.heading : wh.heading._id) !== filters.heading) {
+    return workHours.filter((wh) => {
+      // Date range filter
+      if (filters.startDate && filters.endDate) {
+        const isWithinRange = validateDateRange(filters.startDate, wh.startDate) &&
+                            validateDateRange(wh.endDate, filters.endDate);
+        if (!isWithinRange) return false;
+      } else if (filters.startDate && !validateDateRange(filters.startDate, wh.startDate)) {
+        return false;
+      } else if (filters.endDate && !validateDateRange(wh.endDate, filters.endDate)) {
         return false;
       }
+
+      // Heading filter
+      if (filters.heading) {
+        const headingId = typeof wh.heading === 'string' ? wh.heading : wh.heading._id;
+        if (headingId !== filters.heading) {
+          return false;
+        }
+      }
+
+      // Status filter
       if (filters.status !== 'all') {
         if (filters.status === 'complete' && !wh.isComplete) return false;
         if (filters.status === 'pending' && wh.isComplete) return false;
       }
+
       return true;
     });
   };
 
-  const filteredWorkHours = filterWorkHours(workHours);
+  const calculateTotalMinutesAndEarnings = (filteredHours: WorkHour[]) => {
+    let totalMinutes = 0;
+
+    filteredHours.forEach((wh) => {
+      const [startHour, startMinute] = wh.startTime.split(':').map(Number);
+      const [endHour, endMinute] = wh.endTime.split(':').map(Number);
+      
+      let minutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
+      
+      // Handle overnight shifts
+      if (minutes < 0) {
+        minutes += 24 * 60; // Add 24 hours worth of minutes
+      }
+      
+      totalMinutes += minutes;
+    });
+
+    const earnings = totalMinutes * RATE_PER_MINUTE;
+
+    return {
+      totalMinutes,
+      hours: Math.floor(totalMinutes / 60),
+      minutes: totalMinutes % 60,
+      earnings: earnings.toFixed(2)
+    };
+  };
+
+  // Sort and calculate totals
+  const { sortedAndFilteredWorkHours, totals } = React.useMemo(() => {
+    const filtered = filterWorkHours(workHours);
+    const sorted = [...filtered].sort((a, b) => {
+      const dateA = new Date(`${a.startDate}T${a.startTime}`);
+      const dateB = new Date(`${b.startDate}T${b.startTime}`);
+      return dateB.getTime() - dateA.getTime();
+    });
+
+    return {
+      sortedAndFilteredWorkHours: sorted,
+      totals: calculateTotalMinutesAndEarnings(sorted)
+    };
+  }, [workHours, filters]);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this work hour entry?')) {
@@ -99,7 +163,9 @@ const FilterWorkHours: React.FC = () => {
           <div className="flex items-center">
             <Filter className="h-8 w-8 text-indigo-600 mr-3" />
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Filter Work Hours</h2>
+              <h2 className="text-2xl font-bold text-gray-900">
+                Filter Work Hours
+              </h2>
               <p className="mt-1 text-sm text-gray-500">
                 Apply filters to find specific work hour entries
               </p>
@@ -120,35 +186,33 @@ const FilterWorkHours: React.FC = () => {
       <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
         <div className="px-4 py-6 sm:p-8">
           <div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2">
-            <div className="sm:col-span-1">
-              <DateInput
-                label="Start Date"
-                name="startDate"
-                value={filters.startDate}
-                onChange={handleFilterChange}
-              />
-            </div>
-            <div className="sm:col-span-1">
-              <DateInput
-                label="End Date"
-                name="endDate"
-                value={filters.endDate}
-                onChange={handleFilterChange}
-                min={filters.startDate}
-              />
-            </div>
-            <div className="sm:col-span-1">
-              <HeadingSelect
-                label="Heading"
-                name="heading"
-                value={filters.heading}
-                headings={headings}
-                onChange={handleFilterChange}
-                placeholder="All Headings"
-              />
-            </div>
-            <div className="sm:col-span-1">
-              <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+            <DateInput
+              label="Start Date"
+              name="startDate"
+              value={filters.startDate}
+              onChange={handleFilterChange}
+            />
+            <DateInput
+              label="End Date"
+              name="endDate"
+              value={filters.endDate}
+              onChange={handleFilterChange}
+              min={filters.startDate}
+              disabled={!filters.startDate}
+            />
+            <HeadingSelect
+              label="Heading"
+              name="heading"
+              value={filters.heading}
+              headings={headings}
+              onChange={handleFilterChange}
+              placeholder="All Headings"
+            />
+            <div>
+              <label
+                htmlFor="status"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Status
               </label>
               <select
@@ -178,10 +242,10 @@ const FilterWorkHours: React.FC = () => {
 
       {/* Success/Error Message */}
       {message && (
-        <div 
+        <div
           className={`rounded-md p-4 ${
-            message.includes('Failed') 
-              ? 'bg-red-50 text-red-800' 
+            message.includes('Failed')
+              ? 'bg-red-50 text-red-800'
               : 'bg-green-50 text-green-800'
           }`}
         >
@@ -189,14 +253,39 @@ const FilterWorkHours: React.FC = () => {
         </div>
       )}
 
-      {/* Results Count */}
-      <div className="text-sm text-gray-500">
-        Showing {filteredWorkHours.length} of {workHours.length} entries
+      {/* Results Count and Summary */}
+      <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl p-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <p className="text-sm text-gray-500">Filtered Entries</p>
+            <p className="text-2xl font-semibold text-gray-900">
+              {sortedAndFilteredWorkHours.length} of {workHours.length}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Total Time</p>
+            <p className="text-2xl font-semibold text-gray-900">
+              {totals.hours}h {totals.minutes}m
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Total Minutes</p>
+            <p className="text-2xl font-semibold text-gray-900">
+              {totals.totalMinutes}m
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Total Earnings ($0.2/min)</p>
+            <p className="text-2xl font-semibold text-indigo-600">
+              ${totals.earnings}
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Work Hours Table */}
       <WorkHoursTable
-        workHours={filteredWorkHours}
+        workHours={sortedAndFilteredWorkHours}
         onDelete={handleDelete}
         onToggleComplete={handleToggleComplete}
         isLoading={isLoading}

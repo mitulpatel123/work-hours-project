@@ -82,3 +82,19 @@ export interface AuthContextType {
   logout: () => void;
   resetInactivityTimer: () => void;
 }
+
+
+// In your types.ts file
+export interface DateInputProps {
+  label: string;
+  name: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
+  error?: string;
+  required?: boolean;
+  min?: string;
+  max?: string;
+  disabled?: boolean;  // Added this line
+  className?: string;
+}
